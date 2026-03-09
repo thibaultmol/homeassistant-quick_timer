@@ -54,11 +54,6 @@ from .const import (
     UNIT_HOURS,
     UNIT_MINUTES,
     UNIT_SECONDS,
-    # Legacy imports for backward compatibility
-    ATTR_ACTION,
-    ATTR_RUN_NOW,
-    ATTR_SERVICE,
-    ATTR_SERVICE_DATA,
 )
 from .store import QuickTimerStore, QuickTimerPreferencesStore
 
@@ -75,25 +70,19 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 RUN_ACTION_SCHEMA = vol.Schema(
     {
         vol.Optional(ATTR_TASK_ID): cv.string,  # Unique ID for scoped tasks
-        vol.Optional(ATTR_ENTITY_ID): cv.entity_id,  # Legacy support
         vol.Optional(ATTR_DELAY): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=86400)
         ),
         vol.Optional(ATTR_UNIT, default=UNIT_MINUTES): vol.In([UNIT_SECONDS, UNIT_MINUTES, UNIT_HOURS]),
         vol.Optional(ATTR_TASK_LABEL): cv.string,  # Human-readable label for overview
         vol.Optional(ATTR_START_ACTIONS): vol.All(cv.ensure_list, [dict]),  # Execute on start (optional)
-        vol.Optional(ATTR_FINISH_ACTIONS): vol.All(cv.ensure_list, [dict]),  # Execute on finish (required, optional for legacy)
+        vol.Optional(ATTR_FINISH_ACTIONS): vol.All(cv.ensure_list, [dict]),  # Execute on finish (required)
         vol.Optional(ATTR_NOTIFY, default=False): cv.boolean,
         vol.Optional(ATTR_NOTIFY_HA, default=False): cv.boolean,
         vol.Optional(ATTR_NOTIFY_MOBILE, default=False): cv.boolean,
         vol.Optional(ATTR_NOTIFY_DEVICES): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(ATTR_AT_TIME): cv.string,  # HH:MM format for absolute time
         vol.Optional(ATTR_TIME_MODE, default=TIME_MODE_RELATIVE): vol.In([TIME_MODE_RELATIVE, TIME_MODE_ABSOLUTE]),
-        # Legacy fields for backward compatibility
-        vol.Optional(ATTR_ACTION): cv.string,
-        vol.Optional(ATTR_SERVICE): cv.string,
-        vol.Optional(ATTR_SERVICE_DATA): dict,
-        vol.Optional(ATTR_RUN_NOW): cv.boolean,
     }
 )
 
@@ -110,8 +99,7 @@ def convert_to_seconds(delay: int, unit: str) -> int:
 
 CANCEL_ACTION_SCHEMA = vol.Schema(
     {
-        vol.Optional(ATTR_TASK_ID): cv.string,  # Task ID for scoped cancellation
-        vol.Optional(ATTR_ENTITY_ID): cv.entity_id,  # Legacy support
+        vol.Required(ATTR_TASK_ID): cv.string,
     }
 )
 
@@ -349,74 +337,7 @@ class QuickTimerCoordinator:
             _LOGGER.error("Failed to execute %s: %s", service, err)
             raise
 
-    async def _execute_immediate_action(self, entity_id: str, action: str) -> None:
-        """Execute an immediate action (legacy compatibility) - deprecated."""
-        await self._execute_action(entity_id, action=action)
 
-    def _map_legacy_action(self, entity_id: str, action: str) -> tuple[str, str, dict]:
-        """Map legacy action string to (domain, service_name, extra_data)."""
-        domain = entity_id.split(".")[0]
-        extra_data: dict = {}
-
-        if action in ("on", "turn_on"):
-            return domain, SERVICE_TURN_ON, extra_data
-        if action in ("off", "turn_off"):
-            return domain, SERVICE_TURN_OFF, extra_data
-        if action in ("toggle",):
-            return domain, SERVICE_TOGGLE, extra_data
-        if action in ("open_cover", "close_cover", "stop_cover"):
-            return "cover", action, extra_data
-        if action in ("media_play", "media_stop"):
-            return "media_player", action, extra_data
-        if action in ("start", "return_to_base"):
-            return "vacuum", action, extra_data
-        if action.startswith("set_hvac_mode_"):
-            hvac_mode = action.replace("set_hvac_mode_", "")
-            extra_data["hvac_mode"] = hvac_mode
-            return "climate", "set_hvac_mode", extra_data
-        # Fallback: treat as service name on the entity's domain
-        return domain, action, extra_data
-
-    async def _execute_action(
-        self,
-        entity_id: str,
-        action: str | None = None,
-        service: str | None = None,
-        service_data: dict | None = None,
-    ) -> None:
-        """Execute an action/service on an entity (universal)."""
-        call_data = dict(service_data) if service_data else {}
-        call_data[ATTR_ENTITY_ID] = entity_id
-
-        if service:
-            # Universal mode: "domain.service_name" or just "service_name"
-            if "." in service:
-                svc_domain, svc_name = service.split(".", 1)
-            else:
-                svc_domain = entity_id.split(".")[0]
-                svc_name = service
-        elif action:
-            # Legacy mode: map action constant to domain.service
-            svc_domain, svc_name, extra = self._map_legacy_action(entity_id, action)
-            call_data.update(extra)
-        else:
-            _LOGGER.error("Neither 'service' nor 'action' provided for %s", entity_id)
-            return
-
-        try:
-            await self.hass.services.async_call(
-                svc_domain,
-                svc_name,
-                call_data,
-                blocking=True,
-            )
-            _LOGGER.info(
-                "Executed %s.%s for %s", svc_domain, svc_name, entity_id,
-            )
-        except Exception as err:
-            _LOGGER.error(
-                "Failed to execute %s.%s for %s: %s", svc_domain, svc_name, entity_id, err,
-            )
 
     def _format_delay(self, delay: int, unit: str) -> str:
         """Format delay for display."""
@@ -843,9 +764,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             _LOGGER.error("Quick Timer coordinator not initialized")
             return
 
-        # New architecture: task_id + start_actions + finish_actions
+        # task_id + start_actions + finish_actions
         task_id = call.data.get(ATTR_TASK_ID)
-        entity_id = call.data.get(ATTR_ENTITY_ID)
         delay = call.data.get(ATTR_DELAY, 15)
         unit = call.data.get(ATTR_UNIT, UNIT_MINUTES)
         start_actions = call.data.get(ATTR_START_ACTIONS)
@@ -858,63 +778,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         at_time = call.data.get(ATTR_AT_TIME)
         time_mode = call.data.get(ATTR_TIME_MODE, TIME_MODE_RELATIVE)
 
-        # Legacy support: convert old action/service parameters to action arrays
         if not finish_actions:
-            action = call.data.get(ATTR_ACTION)
-            service = call.data.get(ATTR_SERVICE)
-            service_data = call.data.get(ATTR_SERVICE_DATA, {})
-            run_now = call.data.get(ATTR_RUN_NOW, False)
+            _LOGGER.error("'finish_actions' is required for quick_timer.run_action")
+            return
 
-            if not action and not service:
-                _LOGGER.error("Either 'finish_actions' or legacy 'action'/'service' must be provided")
-                return
-
-            # Convert legacy parameters to action format
-            if not entity_id:
-                _LOGGER.error("'entity_id' is required for legacy mode")
-                return
-
-            # Build finish_actions from legacy parameters
-            if service:
-                finish_service = service
-                action_data = dict(service_data) if service_data else {}
-            elif action:
-                # Reuse _map_legacy_action to correctly convert action strings
-                # (e.g. "set_hvac_mode_heat" → service "climate.set_hvac_mode" + data {"hvac_mode": "heat"})
-                svc_domain, svc_name, extra_data = coord._map_legacy_action(entity_id, action)
-                finish_service = f"{svc_domain}.{svc_name}"
-                action_data = dict(service_data) if service_data else {}
-                action_data.update(extra_data)
-            else:
-                _LOGGER.error("No valid action or service provided")
-                return
-
-            finish_actions = [{
-                "service": finish_service,
-                "target": {"entity_id": entity_id},
-                "data": action_data,
-            }]
-
-            # Handle run_now logic (legacy)
-            if run_now:
-                _LOGGER.warning("run_now is deprecated. Use start_actions instead.")
-                start_actions = finish_actions  # Execute immediately
-                # For reverse, just turn off (simplified)
-                finish_actions = [{
-                    "service": f"{entity_id.split('.')[0]}.turn_off",
-                    "target": {"entity_id": entity_id},
-                    "data": {},
-                }]
-
-        # Default task_id to entity_id for backward compatibility
         if not task_id:
-            if entity_id:
-                task_id = entity_id
-            else:
-                # Generate task_id from finish_actions
-                import hashlib
-                task_str = str(finish_actions)
-                task_id = f"task_{hashlib.md5(task_str.encode()).hexdigest()[:8]}"
+            import hashlib
+            task_str = str(finish_actions)
+            task_id = f"task_{hashlib.md5(task_str.encode()).hexdigest()[:8]}"
 
         await coord.async_schedule_action(
             task_id=task_id,
@@ -939,16 +810,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             return
             
         task_id = call.data.get(ATTR_TASK_ID)
-        entity_id = call.data.get(ATTR_ENTITY_ID)
-        
-        # Default to entity_id for backward compatibility
-        if not task_id and entity_id:
-            task_id = entity_id
-        
+
         if not task_id:
-            _LOGGER.error("Either 'task_id' or 'entity_id' must be provided")
+            _LOGGER.error("'task_id' must be provided to cancel_action")
             return
-            
+
         await coord.async_cancel_action(task_id)
 
     async def handle_get_preferences(call: ServiceCall) -> dict:

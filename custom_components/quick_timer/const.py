@@ -16,7 +16,7 @@ SERVICE_SET_PREFERENCES = "set_preferences"
 
 # Service fields
 ATTR_TASK_ID = "task_id"  # Unique identifier for card instance
-ATTR_ENTITY_ID = "entity_id"  # Legacy support
+ATTR_ENTITY_ID = "entity_id"
 ATTR_DELAY = "delay"
 ATTR_UNIT = "unit"
 ATTR_NOTIFY = "notify"
@@ -29,12 +29,6 @@ ATTR_PREFERENCES = "preferences"
 ATTR_START_ACTIONS = "start_actions"  # List of actions to execute on start (optional)
 ATTR_FINISH_ACTIONS = "finish_actions"  # List of actions to execute on finish (required)
 ATTR_TASK_LABEL = "task_label"  # Human-readable label for the task (for overview)
-
-# Legacy attributes for backward compatibility
-ATTR_ACTION = "action"
-ATTR_RUN_NOW = "run_now"
-ATTR_SERVICE = "service"
-ATTR_SERVICE_DATA = "service_data"
 
 # Time modes
 TIME_MODE_RELATIVE = "relative"

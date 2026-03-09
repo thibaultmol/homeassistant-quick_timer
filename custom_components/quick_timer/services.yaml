@@ -4,18 +4,11 @@ run_action:
   fields:
     task_id:
       name: Task ID
-      description: Unique identifier for this timer task. Allows multiple timers per entity. If omitted, entity_id will be used (legacy mode).
+      description: Unique identifier for this timer task. Allows multiple timers per entity.
       required: false
       example: "card_abc123"
       selector:
         text:
-    entity_id:
-      name: Entity (Legacy)
-      description: For backward compatibility. Use finish_actions instead for multi-target support.
-      required: false
-      example: "light.living_room"
-      selector:
-        entity:
     delay:
       name: Delay
       description: The delay before finish actions are executed (1-86400 depending on unit). Required when using relative time mode.
@@ -116,18 +109,11 @@ cancel_action:
   fields:
     task_id:
       name: Task ID
-      description: The unique task ID to cancel. If omitted, entity_id will be used (legacy mode).
-      required: false
+      description: The unique task ID to cancel.
+      required: true
       example: "card_abc123"
       selector:
         text:
-    entity_id:
-      name: Entity (Legacy)
-      description: The entity to cancel the scheduled task for. Used when task_id is not provided.
-      required: false
-      example: "light.living_room"
-      selector:
-        entity:
 
 get_preferences:
   name: Get Preferences

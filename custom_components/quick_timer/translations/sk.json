@@ -32,10 +32,6 @@
           "name": "ID úlohy",
           "description": "Jedinečný identifikátor pre túto úlohu timera."
         },
-        "entity_id": {
-          "name": "Entita",
-          "description": "Entita, na ktorej sa má vykonať akcia (legacy)."
-        },
         "task_label": {
           "name": "Označenie úlohy",
           "description": "Čitateľné označenie pre túto úlohu timera."
@@ -85,10 +81,6 @@
         "task_id": {
           "name": "ID úlohy",
           "description": "ID úlohy na zrušenie."
-        },
-        "entity_id": {
-          "name": "Entita",
-          "description": "Entita, pre ktorú sa má zrušiť naplánovaná akcia (legacy)."
         }
       }
     },

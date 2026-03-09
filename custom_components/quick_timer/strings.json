@@ -32,10 +32,6 @@
           "name": "Task ID",
           "description": "Unique identifier for this timer task."
         },
-        "entity_id": {
-          "name": "Entity",
-          "description": "The entity to perform the action on (legacy)."
-        },
         "task_label": {
           "name": "Task Label",
           "description": "A human-readable label for this timer task."
@@ -85,10 +81,6 @@
         "task_id": {
           "name": "Task ID",
           "description": "The task ID to cancel."
-        },
-        "entity_id": {
-          "name": "Entity",
-          "description": "The entity to cancel the scheduled action for (legacy)."
         }
       }
     },
