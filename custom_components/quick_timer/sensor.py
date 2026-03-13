@@ -92,6 +92,7 @@ class QuickTimerSensor(SensorEntity):
         preset_seconds = self._parse_presets(options.get("preset_seconds", "5,10,15,20,30,45"))
         preset_minutes = self._parse_presets(options.get("preset_minutes", "1,2,3,5,10,15,20,30,45"))
         preset_hours = self._parse_presets(options.get("preset_hours", "1,2,3,4,6,8,12"))
+        enable_dialog_injection = options.get("enable_dialog_injection", True)
         
         return {
             "active_tasks": tasks_with_remaining,
@@ -102,6 +103,7 @@ class QuickTimerSensor(SensorEntity):
                 "minutes": preset_minutes,
                 "hours": preset_hours,
             },
+            "enable_dialog_injection": enable_dialog_injection,
         }
 
     @callback

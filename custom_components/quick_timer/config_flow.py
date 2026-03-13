@@ -69,6 +69,12 @@ class QuickTimerOptionsFlow(config_entries.OptionsFlow):
                             "preset_hours", "1,2,3,4,6,8,12"
                         ),
                     ): cv.string,
+                    vol.Optional(
+                        "enable_dialog_injection",
+                        default=self.config_entry.options.get(
+                            "enable_dialog_injection", True
+                        ),
+                    ): cv.boolean,
                 }
             ),
         )

@@ -1902,12 +1902,31 @@ class QuickTimerDialogInjector {
     this._observers = [];
     this._retryCount = 0;
     this._maxRetries = 50;
+    this._lastInjectionEnabled = undefined;
+    this._stateWatcherInterval = null;
     this._init();
   }
 
   _init() {
     console.log('[Quick Timer] Dialog Injector initializing...');
     this._setupObserver();
+    this._startStateWatcher();
+  }
+
+  _startStateWatcher() {
+    // Poll the monitor sensor state to detect enable_dialog_injection changes
+    // independently of DOM mutations. This ensures the setting takes effect
+    // immediately after an integration reload, even with an open dialog.
+    this._stateWatcherInterval = setInterval(() => {
+      const hass = this._getHass();
+      const enabled = hass?.states?.[MONITOR_ENTITY]?.attributes?.enable_dialog_injection;
+      // undefined means sensor not loaded yet — treat same as true (default on)
+      const normalised = enabled === false ? false : true;
+      if (normalised !== this._lastInjectionEnabled) {
+        this._lastInjectionEnabled = normalised;
+        this._scheduleInjection();
+      }
+    }, 1000);
   }
 
   _setupObserver() {
@@ -2033,10 +2052,18 @@ class QuickTimerDialogInjector {
     if (this._injecting) return;
     this._injecting = true;
     try {
+      const hass = this._getHass();
+      const monitorAttrs = hass?.states?.[MONITOR_ENTITY]?.attributes;
+      if (monitorAttrs && monitorAttrs.enable_dialog_injection === false) {
+        const result = this._findMoreInfoContent();
+        if (result) this._removePanel(result.target);
+        this._cleanup();
+        return;
+      }
+
       const result = this._findMoreInfoContent();
       if (!result) { this._cleanup(); return; }
       const { target, entityId } = result;
-      const hass = this._getHass();
       updateLanguage(hass);
       if (!isSupportedForQuickTimer(hass, entityId)) { this._removePanel(target); return; }
 

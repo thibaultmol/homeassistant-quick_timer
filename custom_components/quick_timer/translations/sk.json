@@ -18,7 +18,8 @@
         "data": {
           "preset_seconds": "Presety sekúnd",
           "preset_minutes": "Presety minút",
-          "preset_hours": "Presety hodín"
+          "preset_hours": "Presety hodín",
+          "enable_dialog_injection": "Povoliť panel Quick Timer v dialógoch entít"
         }
       }
     }
